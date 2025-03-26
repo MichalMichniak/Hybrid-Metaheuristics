@@ -19,6 +19,10 @@ class Instance:
         #update pojedynczej cząstki
         pass
 
+    def fuzzy_matrix_to_permutation(self):
+        
+        pass
+
     def PSO_to_taboo(self):
         pass
 
