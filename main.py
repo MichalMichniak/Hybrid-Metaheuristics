@@ -1,14 +1,16 @@
 import numpy as np
-from typing import List
-import numpy as np
-from typing import List, Tuple
+import random
+
 from copy import deepcopy
+from typing import List, Tuple
+
 
 N = 20
+TABOO_NEIGHBORS = 5
 MIN_COST = np.inf
 LONG_TERM_CONST = 2
-W = np.random.random((N,N))
-D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
+W = np.random.random((N,N)) # weight matrix
+D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N)) # distance matrix
 
 class Instance:
     def __init__(self):
@@ -46,7 +48,6 @@ class Instance:
         temp2 = perm.reshape((1,len(perm)))
         temp3 = np.concatenate((temp2,temp),axis=0)
         return temp3[:,np.argsort(temp3[0,:])][1,:]
-
 
     def PSO_QAP_cost(self):
         A = W@(self.perm_matrix.T)@D
@@ -93,8 +94,6 @@ class Instance:
     def penality(self):
         return self.B1*np.sum((np.sum(self.perm_matrix,axis=1)-1)**2) + self.B2*np.sum((np.sum(self.perm_matrix,axis=0)-1)**2)
 
-    
-
     def PSO_to_taboo(self):
         self.fuzzy_matrix_to_permutation()
         for i in range(self.taboo_size):
@@ -102,10 +101,10 @@ class Instance:
             self.perm_matrix[ind[0],ind[1]] = 0
             idx2 = np.argmax(self.perm_matrix[ind[0]], axis=None)
             # odtwarzanie listy taboo
-            if(ind[1]<idx2):
-                self.taboo_lst.append((ind[1],idx2))
-            elif(ind[1]>idx2):
-                self.taboo_lst.append((idx2,ind[1]))
+            if ind[1] != idx2:
+                self.taboo_lst.append(sorted((ind[1],idx2)))
+                if len(self.taboo_lst) > self.taboo_size:
+                    self.taboo_lst.pop(0)
             # odtwarzanie długoterminowej
             self.taboo_longterm_lst = np.zeros((N,N-1))
             for n1 in range(N):
@@ -114,7 +113,34 @@ class Instance:
         pass
 
     def taboo_step(self):
-        pass
+        best_neighbor_cost = np.inf
+        for i in range(TABOO_NEIGHBORS): # częściowe przeszukanie sąsiedztwa
+            neighbor = deepcopy(self.permutation)
+            a, b = random.sample(range(1, 21), 2) # wybór dwóch indeksów losowych elementów do zamiany
+            move = sorted((a - 1, b - 1))
+            if move not in self.taboo_lst:
+                neighbor[a - 1], neighbor[b - 1] = neighbor[b - 1], neighbor[a - 1]
+                neighbor_cost = self.taboo_QAP_cost(neighbor)
+                if neighbor_cost < best_neighbor_cost:
+                    best_neighbor_cost = neighbor_cost
+                    self.taboo_lst.append(move)
+                    self.permutation = neighbor
+                    if len(self.taboo_lst) > self.taboo_size:
+                        self.taboo_lst.pop(0)
+
+                if len(self.taboo_lst) != 10:
+                    print(len(self.taboo_lst))
+
+        return best_neighbor_cost
+    
+    def taboo_QAP_cost(self, solution=None):
+        if solution is None:
+            solution = self.permutation
+        total_cost = 0
+        for i in range(N):
+            for j in range(N):
+                total_cost += W[i][j] * D[solution[i]][solution[j]]
+        return total_cost
 
     def mutation():
         pass
@@ -134,8 +160,6 @@ class Instance:
         T[transp[0],transp[1]] = 1
         return T
 
-
-
     def V_prev(self):
         transformation = np.eye(N)
         for i in list(range(len(self.taboo_lst)))[::-1]:
@@ -145,6 +169,7 @@ class Instance:
             X[i,self.permutation[i]] = 1
         X_prev = X@transformation.T
         return X-X_prev
+
 
 def PSO(population_lst : List[Instance], M_PSO = 5):
     p_d = population_lst[0].best_matrix    # TODO: lepsza inicializacja najlepszego
@@ -165,7 +190,6 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
     for it in range(M_PSO):
         for i in range(len(population_lst)):
             population_lst[i].PSO_step(p_d)
-
         
         for i in range(len(population_lst)):
             population_lst[i].fuzzy_matrix_to_permutation()
@@ -187,8 +211,19 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
         population_lst[i].PSO_to_taboo()
     pass
 
+
 def Taboo(population_lst : List[Instance], M_Taboo = 5):
-    pass
+    best_global_cost = np.inf
+    for i in range(len(population_lst)):
+        instance_cost = population_lst[i].taboo_QAP_cost()
+        if instance_cost < best_global_cost:
+            best_global_cost = instance_cost
+    for it in range(M_Taboo):
+        for i in range(len(population_lst)):
+            best_local_cost = population_lst[i].taboo_step()
+            if best_local_cost < best_global_cost:
+                best_global_cost = best_local_cost
+                print(f"inst: {i}, Taboo {best_global_cost}")
 
 def GA(population_lst : List[Instance], idx : List[int]):
     return []
@@ -230,7 +265,7 @@ def split_population(population_lst : List[Instance], M_species = 3) -> List[Lis
     ### dummy assigment
     return [list(range(len(population_lst)))[0:len(population_lst)//3], list(range(len(population_lst)))[len(population_lst)//3:(2*len(population_lst))//3], list(range(len(population_lst)))[(2*len(population_lst))//3:]]
 
-def run(M_PSO = 50, M_TABOO = 5, M_species = 3, max_it = 10):
+def run(M_PSO = 1, M_TABOO = 5, M_species = 3, max_it = 10):
     population_lst : List[Instance] = initialization()
     for i in range(max_it):
         PSO(population_lst, M_PSO)
