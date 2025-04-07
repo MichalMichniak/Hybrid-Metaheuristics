@@ -29,8 +29,8 @@ class Instance:
 
         ### PSO ###
         self.omega = 0.8
-        self.c_1 = 2.8
-        self.c_2 = 2.8
+        self.c_1 = 0.8
+        self.c_2 = 0.8
         self.B1 = 5
         self.B2 = 5
 
@@ -75,6 +75,8 @@ class Instance:
     def PSO_step(self, p_d):
         #update pojedynczej cząstki
         self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.PSO_toroidical_dist_from_to(self.best_matrix, self.perm_matrix)) + np.random.rand()*self.c_2*(self.PSO_toroidical_dist_from_to(p_d, self.perm_matrix))
+        self.velocity_matrix = np.minimum(-0,5 , np.maximum(self.velocity_matrix,0.5))
+        
         self.perm_matrix = (self.perm_matrix + self.velocity_matrix)%2
         pass
     
@@ -365,7 +367,7 @@ class Island:
 def initialization(M_start = 100) -> List[Instance]:
     instance_lst = [Instance() for i in range(M_start)]
     for i in range(len(instance_lst)):
-        instance_lst[i].perm_matrix = np.random.rand(N,N)
+        instance_lst[i].perm_matrix = 2*np.random.rand(N,N)
         instance_lst[i].velocity_matrix = np.random.rand(N,N)
     return instance_lst
 
