@@ -3,12 +3,17 @@ from typing import List
 import numpy as np
 from typing import List, Tuple
 from copy import deepcopy
+import random
 
-N = 20
+N = 50
+TABOO_NEIGHBORS = 30
 MIN_COST = np.inf
 LONG_TERM_CONST = 2
 W = np.random.random((N,N))
 D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
+D = (D+D.T)/2
+SURV_PART = 0.6
+MUTATION_PROB = 0.3
 
 class Instance:
     def __init__(self):
@@ -30,10 +35,27 @@ class Instance:
         self.B2 = 5
         ### END PSO ###
 
+        ### islands ###
+
+        self.histogram = np.zeros((N,), dtype=int)
+
+        ### end islands ###
+
+
         ### GA -> PSO ###
         self.c_1_GA_PSO = 0.5
         self.c_2_GA_PSO = 0.5
         pass
+    
+    def make_hist(self):
+        self.histogram = np.zeros((N,), dtype=int)
+        for i in range(len(self.taboo_lst)):
+            a,b = self.taboo_lst[i]
+            self.histogram[a] += 1
+            self.histogram[b] += 1
+            
+
+
 
     def PSO_step(self, p_d):
         #update pojedynczej cząstki
@@ -113,10 +135,47 @@ class Instance:
                     self.taboo_longterm_lst[n1,n2] = LONG_TERM_CONST * min(self.velocity_matrix[n1,n2],self.velocity_matrix[n2,n1])
         pass
 
+    def taboo_QAP_cost(self, solution=None):
+        if solution is None:
+            solution = self.permutation
+        total_cost = 0
+        for i in range(N):
+            for j in range(N):
+                total_cost += W[i][j] * D[solution[i]][solution[j]]
+        return total_cost
+
     def taboo_step(self):
+        best_neighbor_cost = np.inf
+        for i in range(TABOO_NEIGHBORS): # częściowe przeszukanie sąsiedztwa
+            neighbor = deepcopy(self.permutation)
+            a, b = random.sample(range(1, N+1), 2) # wybór dwóch indeksów losowych elementów do zamiany
+            move = sorted((a - 1, b - 1))
+            if move not in self.taboo_lst:
+                neighbor[a - 1], neighbor[b - 1] = neighbor[b - 1], neighbor[a - 1]
+                neighbor_cost = self.taboo_QAP_cost(neighbor)
+                if neighbor_cost < best_neighbor_cost:
+                    best_neighbor_cost = neighbor_cost
+                    self.taboo_lst.append(move)
+                    self.permutation = neighbor
+                    if len(self.taboo_lst) > self.taboo_size:
+                        self.taboo_lst.pop(0)
+
+                # if len(self.taboo_lst) != 10:
+                #     print(len(self.taboo_lst))
+
+        return best_neighbor_cost
         pass
 
-    def mutation():
+    def mutation(self):
+        a, b = random.sample(range(0, N), 2)
+        move = sorted((a, b))
+        max_it = self.taboo_size
+        it = 0
+        while(it < max_it and move in self.taboo_lst ):
+            a, b = random.sample(range(0, N), 2)
+            move = sorted((a, b))
+            it+=1
+        self.permutation[a], self.permutation[b] = self.permutation[b], self.permutation[a]
         pass
 
     def GA_to_PSO(self, V_mean):
@@ -156,13 +215,15 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
         cost3 = population_lst[i].real_QAP_cost()
         
         penality = population_lst[i].penality()
-        cost = cost3 + penality #cost1+penality #TODO: chose cost func
+        cost = cost3# + penality #cost1+penality #TODO: chose cost func
         if(best_cost>cost):
             best_cost = cost
             p_d = deepcopy(population_lst[i].perm_matrix)
-            print(f"inst: {i}, PSO {cost1}, PSO_half {cost2}, real {cost3}, cost {cost}")
+            best_cost = cost
+    print(f"best PSO input: {best_cost}")
 
     for it in range(M_PSO):
+        print(f"start iteration PSO{it}")
         for i in range(len(population_lst)):
             population_lst[i].PSO_step(p_d)
 
@@ -174,9 +235,10 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
             cost3 = population_lst[i].real_QAP_cost()
             
             penality = population_lst[i].penality()
-            cost = cost3 + penality #cost1+penality #TODO: chose cost func
-            if(best_cost>cost):
-                best_cost = cost
+            cost_main = cost3# + penality #cost1+penality #TODO: chose cost func
+            cost = cost3 + penality
+            if(best_cost>cost_main):
+                best_cost = cost_main
                 p_d = deepcopy(population_lst[i].perm_matrix)
                 print(f"inst: {i}, PSO {cost1}, PSO_half {cost2}, real {cost3}, cost {cost}")
             if(population_lst[i].best_cost>cost):
@@ -188,10 +250,70 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
     pass
 
 def Taboo(population_lst : List[Instance], M_Taboo = 5):
+    best_global_cost = np.inf
+    for i in range(len(population_lst)):
+        instance_cost = population_lst[i].taboo_QAP_cost()
+        if instance_cost < best_global_cost:
+            best_global_cost = instance_cost
+    for it in range(M_Taboo):
+        print(f"start iteration Taboo: {it}")
+        for i in range(len(population_lst)):
+            best_local_cost = population_lst[i].taboo_step()
+            if best_local_cost < best_global_cost:
+                best_global_cost = best_local_cost
+                print(f"inst: {i}, Taboo {best_global_cost}")
+    min_cost = np.inf
+    for inst in population_lst:
+        temp = inst.taboo_QAP_cost()
+        if(temp < min_cost):
+            min_cost = temp
+    print(f"minimalny koszt po taboo: {min_cost}")
     pass
 
+def PMX(inst1 : Instance, inst2 : Instance):
+    new = Instance()
+    p1 = inst1.permutation
+    p2 = inst2.permutation
+    offspring = np.zeros(len(p1), dtype=p1.dtype)
+    cutoff_1, cutoff_2 = np.sort(np.random.choice(np.arange(len(p1)+1), size=2, replace=False))
+    offspring[cutoff_1:cutoff_2] = p1[cutoff_1:cutoff_2]
+    for i in np.concatenate([np.arange(0,cutoff_1), np.arange(cutoff_2,len(p1))]):
+        candidate = p2[i]
+        while candidate in p1[cutoff_1:cutoff_2]: # allows for several successive mappings
+            candidate = p2[np.where(p1 == candidate)[0][0]]
+        offspring[i] = candidate
+    new.permutation = offspring
+    return new
+
 def GA(population_lst : List[Instance], idx : List[int]):
-    return []
+    if len(idx) <3:
+        return [], idx
+    # count cost
+    costs = []
+    for i in idx:
+        costs.append(population_lst[i].real_QAP_cost())
+    costs = np.max(np.array(costs)) - np.array(costs)+0.001 #epsilon 
+    # selection
+    NO_SURV = int(np.ceil(float(len(idx))*SURV_PART))
+    NO_OFFSPRING = len(idx)-NO_SURV
+
+    #rulette
+    probability = costs/np.sum(costs)
+    surv = np.random.choice(len(idx), NO_SURV, replace=False, p=probability)
+    surv = np.array([idx[i] for i in surv])
+
+    offsprings = []
+    # offspring
+    for i in range(NO_OFFSPRING):
+        t = np.random.choice(len(idx), 2, replace=False, p=probability)
+        offsprings.append(PMX(population_lst[t[0]], population_lst[t[1]]))
+
+    # mutation of survivors
+    for i in surv:
+        if random.random() < MUTATION_PROB:
+            population_lst[i].mutation()
+
+    return offsprings,surv
     pass
 
 class Island:
@@ -208,15 +330,17 @@ class Island:
 
     def run(self):
         # wykonanie GA i zamiana na formę PSO
-        self.offsprings : List[Instance]= GA(self.population_lst, self.idx)
+        self.offsprings, self.survivors = GA(self.population_lst, self.idx)# both : List[Instance]
         # (tu mogą być problemy z multiprocessing)
         print("GA->PSO")
-        for i in self.idx:
+        for i in self.survivors:
             self.population_lst[i].GA_to_PSO(self.V_mean)
         
         for i in range(len(self.offsprings)):
             self.offsprings[i].GA_to_PSO(self.V_mean)
         self.population_lst.extend(self.offsprings)
+        self.del_idx = [idx for idx in self.idx if idx not in self.survivors]
+        return self.del_idx
 
 
 def initialization(M_start = 100) -> List[Instance]:
@@ -226,22 +350,66 @@ def initialization(M_start = 100) -> List[Instance]:
         instance_lst[i].velocity_matrix = np.random.rand(N,N)
     return instance_lst
 
-def split_population(population_lst : List[Instance], M_species = 3) -> List[List[int]]:
-    ### dummy assigment
-    return [list(range(len(population_lst)))[0:len(population_lst)//3], list(range(len(population_lst)))[len(population_lst)//3:(2*len(population_lst))//3], list(range(len(population_lst)))[(2*len(population_lst))//3:]]
+def simmilarity_inst(inst1 : Instance, inst2 : Instance):
+    return np.sum(np.minimum(inst1.histogram, inst2.histogram))
 
-def run(M_PSO = 50, M_TABOO = 5, M_species = 3, max_it = 10):
+
+def split_population(population_lst : List[Instance], M_species = 3) -> List[List[int]]:
+    
+    for i in range(len(population_lst)):
+        population_lst[i].make_hist()
+    
+    frontiers = []
+    first = population_lst[0]
+    second = population_lst[0]
+    curr_smalest = simmilarity_inst(first,second)
+    ## first two
+    for i in range(len(population_lst)):
+        for j in range(len(population_lst)):
+            if simmilarity_inst(population_lst[i], population_lst[j]) < curr_smalest:
+                curr_smalest = simmilarity_inst(population_lst[i], population_lst[j])
+                first = population_lst[i]
+                second = population_lst[j]
+    frontiers.append(first)
+    frontiers.append(second)
+
+
+    for time in range(M_species-2):
+        temp = population_lst[0]
+        curr_smalest = np.sum(np.array([simmilarity_inst(population_lst[0], inst) for inst in frontiers]))
+        for i in range(len(population_lst)):
+            temp_sim = np.sum(np.array([simmilarity_inst(population_lst[i], inst) for inst in frontiers]))
+            if temp_sim < curr_smalest:
+                curr_smalest = temp_sim
+                temp = population_lst[i]
+        frontiers.append(temp)
+    
+    idx_lst = []
+    for i in range(M_species):
+        idx_lst.append([])
+    
+    for i in range(len(population_lst)):
+        temp_idx = np.argmax(np.array([simmilarity_inst(population_lst[i], inst) for inst in frontiers]))
+        idx_lst[temp_idx].append(i)
+    print([len(idx_lst[i]) for i in range(len(idx_lst))])
+    return idx_lst#[list(range(len(population_lst)))[0:len(population_lst)//3], list(range(len(population_lst)))[len(population_lst)//3:(2*len(population_lst))//3], list(range(len(population_lst)))[(2*len(population_lst))//3:]]
+
+def run(M_PSO = 50, M_TABOO = 20, M_species = 3, max_it = 10):
     population_lst : List[Instance] = initialization()
     for i in range(max_it):
         PSO(population_lst, M_PSO)
         Taboo(population_lst, M_TABOO)
 
         split_idx : List[List[int]] = split_population(population_lst, M_species )
-
+        del_list = []
         for i in range(M_species):
             island = Island(population_lst, split_idx[i])
             island.count_mean_transformation()
-            island.run()
+            del_list.extend(island.run())
+        del_list.sort(reverse=True)
+        for i in del_list:
+            population_lst.pop(i)
+        
     print("finished :)")
     
 
