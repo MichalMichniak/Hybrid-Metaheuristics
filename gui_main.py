@@ -495,10 +495,27 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         return m_pso, m_taboo, m_species, m_start, max_it
     
     def get_global_vars(self):
-        global N
+        global N, TABOO_NEIGHBORS, MUTATION_PROB, SURV_PART
+        prev_n = N
         N = int(self.N_numer.text())
-        global TABOO_NEIGHBORS
+        if prev_n != N:
+            print("siur")
+            global W, D
+            W = np.random.random((N,N))
+            D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
+            D = (D+D.T)/2
         TABOO_NEIGHBORS = int(self.taboo_neighbours_num.text())
+        MUTATION_PROB = float(self.mut_prob_num.text())
+        SURV_PART = float(self.surr_part_num.text())
+        global LONG_TERM_CONST, OMEGA, C_1, C_2, B1, B2, C_1_GA_PSO, C_2_GA_PSO
+        LONG_TERM_CONST = int(self.long_term_cost_num.text())
+        OMEGA = float(self.omega_num.text())
+        C_1 = float(self.c1_num.text())
+        C_2 = float(self.c2_num.text())
+        B1 = float(self.b1_num.text())
+        B2 = float(self.b2_num.text())
+        C_1_GA_PSO = float(self.c1_ga_pso_num.text())
+        C_2_GA_PSO = float(self.c2_ga_pso_num.text())
         
         
     # def handle_run(self): 
