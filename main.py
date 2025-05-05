@@ -29,10 +29,12 @@ class Instance:
 
         ### PSO ###
         self.omega = 0.8
-        self.c_1 = 2.8
-        self.c_2 = 2.8
+        self.c_1 = 0.8
+        self.c_2 = 0.8
         self.B1 = 5
         self.B2 = 5
+
+        self.temp_perm_matrix = np.zeros((N,N), dtype = float)
         ### END PSO ###
 
         ### islands ###
@@ -47,6 +49,16 @@ class Instance:
         self.c_2_GA_PSO = 0.5
         pass
     
+    def to_toroidical(self):
+        self.perm_matrix = self.temp_perm_matrix
+        pass
+
+    def from_toroidical(self):
+        self.temp_perm_matrix = deepcopy(self.perm_matrix)
+        self.perm_matrix = -(np.abs(self.perm_matrix-1))+1
+        pass
+
+
     def make_hist(self):
         self.histogram = np.zeros((N,), dtype=int)
         for i in range(len(self.taboo_lst)):
@@ -54,13 +66,18 @@ class Instance:
             self.histogram[a] += 1
             self.histogram[b] += 1
             
-
-
+    def PSO_toroidical_dist_from_to(self,m1, m2):
+        first = m1 - m2
+        second = (m1+1)%2 - (m2+1)%2
+        mask = np.abs(first) > np.abs(second)
+        return first*(1-mask) + second*(mask)
 
     def PSO_step(self, p_d):
         #update pojedynczej cząstki
-        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.best_matrix - self.perm_matrix) + np.random.rand()*self.c_2*(p_d - self.perm_matrix)
-        self.perm_matrix = np.minimum(1,np.maximum(0, self.perm_matrix + self.velocity_matrix))
+        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.PSO_toroidical_dist_from_to(self.best_matrix, self.perm_matrix)) + np.random.rand()*self.c_2*(self.PSO_toroidical_dist_from_to(p_d, self.perm_matrix))
+        self.velocity_matrix = np.minimum(-0,5 , np.maximum(self.velocity_matrix,0.5))
+        
+        self.perm_matrix = (self.perm_matrix + self.velocity_matrix)%2
         pass
     
     def inverse_permutation(self,perm):
@@ -209,6 +226,7 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
     p_d = population_lst[0].best_matrix    # TODO: lepsza inicializacja najlepszego
     best_cost = np.inf
     for i in range(len(population_lst)):
+        population_lst[i].from_toroidical()
         population_lst[i].fuzzy_matrix_to_permutation()
         cost1 = population_lst[i].PSO_full_QAP_cost()
         cost2 = population_lst[i].PSO_QAP_cost()
@@ -220,12 +238,15 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
             best_cost = cost
             p_d = deepcopy(population_lst[i].perm_matrix)
             best_cost = cost
+        
     print(f"best PSO input: {best_cost}")
 
     for it in range(M_PSO):
         print(f"start iteration PSO{it}")
         for i in range(len(population_lst)):
+            population_lst[i].to_toroidical()
             population_lst[i].PSO_step(p_d)
+            population_lst[i].from_toroidical()
 
         
         for i in range(len(population_lst)):
@@ -346,7 +367,7 @@ class Island:
 def initialization(M_start = 100) -> List[Instance]:
     instance_lst = [Instance() for i in range(M_start)]
     for i in range(len(instance_lst)):
-        instance_lst[i].perm_matrix = np.random.rand(N,N)
+        instance_lst[i].perm_matrix = 2*np.random.rand(N,N)
         instance_lst[i].velocity_matrix = np.random.rand(N,N)
     return instance_lst
 
