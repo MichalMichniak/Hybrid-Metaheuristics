@@ -6,19 +6,20 @@ from copy import deepcopy
 import random
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow
-from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, Signal, QThread
+from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, Signal, Slot, QThread
 from PySide6.QtGui import QTextCursor
 from ui import Ui_MainWindow
+from constants import *
 
-N = 50
-TABOO_NEIGHBORS = 30
+# N = 50
+# TABOO_NEIGHBORS = 30
 MIN_COST = np.inf
-LONG_TERM_CONST = 2
+# LONG_TERM_CONST = 2
 W = np.random.random((N,N))
 D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
 D = (D+D.T)/2
-SURV_PART = 0.6
-MUTATION_PROB = 0.3
+# SURV_PART = 0.6
+# MUTATION_PROB = 0.3
         
         
 class Instance:
@@ -34,11 +35,11 @@ class Instance:
         self.taboo_longterm_lst = np.zeros((N,N-1)) # convention smaler first
 
         ### PSO ###
-        self.omega = 0.8
-        self.c_1 = 2.8
-        self.c_2 = 2.8
-        self.B1 = 5
-        self.B2 = 5
+        self.omega = OMEGA
+        self.c_1 = C_1
+        self.c_2 = C_2
+        self.B1 = B1
+        self.B2 = B2
         ### END PSO ###
 
         ### islands ###
@@ -49,8 +50,9 @@ class Instance:
 
 
         ### GA -> PSO ###
-        self.c_1_GA_PSO = 0.5
-        self.c_2_GA_PSO = 0.5
+        self.c_1_GA_PSO = C_1_GA_PSO
+        self.c_2_GA_PSO = C_2_GA_PSO
+
         pass
     
     def make_hist(self):
@@ -400,8 +402,10 @@ def split_population(population_lst : List[Instance], M_species = 3) -> List[Lis
     print([len(idx_lst[i]) for i in range(len(idx_lst))])
     return idx_lst#[list(range(len(population_lst)))[0:len(population_lst)//3], list(range(len(population_lst)))[len(population_lst)//3:(2*len(population_lst))//3], list(range(len(population_lst)))[(2*len(population_lst))//3:]]
 
-def run(M_PSO = 50, M_TABOO = 20, M_species = 3, M_start=100, max_it = 10):
+def run(M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_start=START, max_it = MAX_ITER):
     population_lst : List[Instance] = initialization(M_start=M_start)
+    print(N)
+    # print(max_it)
     for i in range(max_it):
         PSO(population_lst, M_PSO)
         Taboo(population_lst, M_TABOO)
@@ -419,13 +423,15 @@ def run(M_PSO = 50, M_TABOO = 20, M_species = 3, M_start=100, max_it = 10):
     print("finished :)")
 
 class Worker(QObject):
-    finished = Signal()
+    finished = Signal() 
+    start_runn = Signal(int, int, int, int, int)
+    def __init__(self):
+        super().__init__()
+        self.start_runn.connect(self.runn)
 
-    def runn(self):
-        # Tutaj umieść swoją długotrwałą operację
-        print("Rozpoczynam działanie funkcji run()")
-        run(max_it=1)
-        print("Zakończono działanie funkcji run()")
+    @Slot(int, int, int, int, int)
+    def runn(self, m_pso, m_taboo, m_species, m_start, max_it):
+        run(M_PSO=m_pso, M_TABOO =m_taboo, M_species = m_species, M_start=m_start, max_it=max_it)
         self.finished.emit()
 
 class EmittingStream(QObject):
@@ -458,7 +464,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         sys.stderr = EmittingStream(self.original_stderr)
         sys.stdout.text_written.connect(self.append_text)
         sys.stderr.text_written.connect(self.append_text)
-        
         self.pushButton.clicked.connect(self.start_thread)
     
     def append_text(self, text):
@@ -470,13 +475,33 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.thread = QThread()
         self.worker = Worker()
         self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.runn)
+        # self.worker.start_runn.emit(13)
+        self.get_global_vars()
+        # self.thread.started.connect(self.worker.runn)
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        
+        
+        self.thread.started.connect(lambda: self.worker.start_runn.emit(*self.get_values_for_run()))
         self.thread.start()
         
-    # def handle_run(self):
+    def get_values_for_run(self):
+        m_pso = int(self.m_pso_num.text())
+        m_taboo = int(self.m_taboo_num.text())
+        m_species = int(self.m_species_num.text())
+        m_start = int(self.m_start_num.text())
+        max_it = int(self.max_iter_num.text())
+        return m_pso, m_taboo, m_species, m_start, max_it
+    
+    def get_global_vars(self):
+        global N
+        N = int(self.N_numer.text())
+        global TABOO_NEIGHBORS
+        TABOO_NEIGHBORS = int(self.taboo_neighbours_num.text())
+        
+        
+    # def handle_run(self): 
     #     result = run(max_it=1)
     #     # self.textBrowser.setPlainText("dupa")
 

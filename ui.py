@@ -18,6 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QLabel, QLineEdit, QMainWindow,
     QMenuBar, QPushButton, QSizePolicy, QStatusBar,
     QTextBrowser, QWidget)
+from constants import *
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -103,7 +104,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"HYBRID METAHEURISTICS", None))
         self.pushButton.setText(QCoreApplication.translate("MainWindow", u"START", None))
-        self.N_numer.setText(QCoreApplication.translate("MainWindow", u"50", None))
+        self.N_numer.setText(QCoreApplication.translate("MainWindow", str(N), None))
         self.N.setText(QCoreApplication.translate("MainWindow", u"N ", None))
         self.Taboo_neighbours.setText(QCoreApplication.translate("MainWindow", u"Taboo_neighbours", None))
         self.surv_part.setText(QCoreApplication.translate("MainWindow", u"surv_part", None))
@@ -113,13 +114,13 @@ class Ui_MainWindow(object):
         self.M_start.setText(QCoreApplication.translate("MainWindow", u"M_start", None))
         self.m_species.setText(QCoreApplication.translate("MainWindow", u"M_species", None))
         self.max_iter.setText(QCoreApplication.translate("MainWindow", u"max_iter", None))
-        self.taboo_neighbours_num.setText(QCoreApplication.translate("MainWindow", u"30", None))
-        self.surr_part_num.setText(QCoreApplication.translate("MainWindow", u"0.6", None))
-        self.mut_prob_num.setText(QCoreApplication.translate("MainWindow", u"0.3", None))
-        self.m_pso_num.setText(QCoreApplication.translate("MainWindow", u"50", None))
-        self.m_taboo_num.setText(QCoreApplication.translate("MainWindow", u"20", None))
-        self.m_start_num.setText(QCoreApplication.translate("MainWindow", u"100", None))
-        self.m_species_num.setText(QCoreApplication.translate("MainWindow", u"3", None))
-        self.max_iter_num.setText(QCoreApplication.translate("MainWindow", u"10", None))
+        self.taboo_neighbours_num.setText(QCoreApplication.translate("MainWindow", str(TABOO_NEIGHBORS), None))
+        self.surr_part_num.setText(QCoreApplication.translate("MainWindow", str(SURV_PART), None))
+        self.mut_prob_num.setText(QCoreApplication.translate("MainWindow", str(MUTATION_PROB), None))
+        self.m_pso_num.setText(QCoreApplication.translate("MainWindow", str(M_PSO), None))
+        self.m_taboo_num.setText(QCoreApplication.translate("MainWindow", str(M_TABOO), None))
+        self.m_start_num.setText(QCoreApplication.translate("MainWindow", str(START), None))
+        self.m_species_num.setText(QCoreApplication.translate("MainWindow", str(M_SPECIES), None))
+        self.max_iter_num.setText(QCoreApplication.translate("MainWindow", str(MAX_ITER), None))
     # retranslateUi
 
