@@ -264,10 +264,10 @@
    <widget class="QTextBrowser" name="textBrowser">
     <property name="geometry">
      <rect>
-      <x>320</x>
+      <x>300</x>
       <y>60</y>
-      <width>391</width>
-      <height>491</height>
+      <width>421</width>
+      <height>171</height>
      </rect>
     </property>
    </widget>
@@ -477,6 +477,26 @@
     </property>
     <property name="text">
      <string>0.5</string>
+    </property>
+   </widget>
+   <widget class="QOpenGLWidget" name="openGLWidget">
+    <property name="geometry">
+     <rect>
+      <x>-50</x>
+      <y>700</y>
+      <width>300</width>
+      <height>200</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QGraphicsView" name="graphicsView">
+    <property name="geometry">
+     <rect>
+      <x>300</x>
+      <y>250</y>
+      <width>421</width>
+      <height>311</height>
+     </rect>
     </property>
    </widget>
   </widget>

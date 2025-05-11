@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QApplication, QLabel, QLineEdit, QMainWindow,
     QMenuBar, QPushButton, QSizePolicy, QStatusBar,
     QTextBrowser, QWidget)
 from constants import *
+import pyqtgraph as pg
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -86,7 +87,8 @@ class Ui_MainWindow(object):
         self.max_iter_num.setGeometry(QRect(130, 260, 113, 22))
         self.textBrowser = QTextBrowser(self.centralwidget)
         self.textBrowser.setObjectName(u"textBrowser")
-        self.textBrowser.setGeometry(QRect(320, 60, 391, 491))
+        # self.textBrowser.setGeometry(QRect(320, 60, 391, 491))
+        self.textBrowser.setGeometry(QRect(300, 60, 421, 171))
         self.long_term_cost = QLabel(self.centralwidget)
         self.long_term_cost.setObjectName(u"long_term_cost")
         self.long_term_cost.setGeometry(QRect(28, 320, 87, 20))
@@ -135,6 +137,12 @@ class Ui_MainWindow(object):
         self.c2_ga_pso_num = QLineEdit(self.centralwidget)
         self.c2_ga_pso_num.setObjectName(u"c2_ga_pso_num")
         self.c2_ga_pso_num.setGeometry(QRect(130, 530, 113, 22))
+        
+        self.plotWidget = pg.PlotWidget(self.centralwidget)
+        self.plotWidget.setObjectName("plotWidget")
+        self.plotWidget.setGeometry(QRect(300, 240, 421, 311))
+        
+        
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")

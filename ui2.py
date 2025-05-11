@@ -15,9 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QLabel, QLineEdit, QMainWindow,
-    QMenuBar, QPushButton, QSizePolicy, QStatusBar,
-    QTextBrowser, QWidget)
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtWidgets import (QApplication, QGraphicsView, QLabel, QLineEdit,
+    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
+    QStatusBar, QTextBrowser, QWidget)
+import pyqtgraph as pg
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -85,7 +87,7 @@ class Ui_MainWindow(object):
         self.max_iter_num.setGeometry(QRect(130, 260, 113, 22))
         self.textBrowser = QTextBrowser(self.centralwidget)
         self.textBrowser.setObjectName(u"textBrowser")
-        self.textBrowser.setGeometry(QRect(320, 60, 391, 491))
+        self.textBrowser.setGeometry(QRect(300, 60, 421, 171))
         self.long_term_cost = QLabel(self.centralwidget)
         self.long_term_cost.setObjectName(u"long_term_cost")
         self.long_term_cost.setGeometry(QRect(24, 320, 91, 20))
@@ -134,6 +136,12 @@ class Ui_MainWindow(object):
         self.c2_ga_pso_num = QLineEdit(self.centralwidget)
         self.c2_ga_pso_num.setObjectName(u"c2_ga_pso_num")
         self.c2_ga_pso_num.setGeometry(QRect(130, 530, 113, 22))
+        self.openGLWidget = QOpenGLWidget(self.centralwidget)
+        self.openGLWidget.setObjectName(u"openGLWidget")
+        self.openGLWidget.setGeometry(QRect(-50, 700, 300, 200))
+        self.graphicsView = QGraphicsView(self.centralwidget)
+        self.graphicsView.setObjectName(u"graphicsView")
+        self.graphicsView.setGeometry(QRect(300, 250, 421, 311))
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")

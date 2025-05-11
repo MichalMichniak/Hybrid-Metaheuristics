@@ -52,8 +52,17 @@ class Instance:
         ### GA -> PSO ###
         self.c_1_GA_PSO = C_1_GA_PSO
         self.c_2_GA_PSO = C_2_GA_PSO
-
         pass
+    
+    def to_toroidical(self):
+        self.perm_matrix = self.temp_perm_matrix
+        pass
+
+    def from_toroidical(self):
+        self.temp_perm_matrix = deepcopy(self.perm_matrix)
+        self.perm_matrix = -(np.abs(self.perm_matrix-1))+1
+        pass
+
     
     def make_hist(self):
         self.histogram = np.zeros((N,), dtype=int)
@@ -62,13 +71,18 @@ class Instance:
             self.histogram[a] += 1
             self.histogram[b] += 1
             
-
-
+    def PSO_toroidical_dist_from_to(self,m1, m2):
+        first = m1 - m2
+        second = (m1+1)%2 - (m2+1)%2
+        mask = np.abs(first) > np.abs(second)
+        return first*(1-mask) + second*(mask)
 
     def PSO_step(self, p_d):
         #update pojedynczej cząstki
-        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.best_matrix - self.perm_matrix) + np.random.rand()*self.c_2*(p_d - self.perm_matrix)
-        self.perm_matrix = np.minimum(1,np.maximum(0, self.perm_matrix + self.velocity_matrix))
+        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.PSO_toroidical_dist_from_to(self.best_matrix, self.perm_matrix)) + np.random.rand()*self.c_2*(self.PSO_toroidical_dist_from_to(p_d, self.perm_matrix))
+        self.velocity_matrix = np.minimum(-0,5 , np.maximum(self.velocity_matrix,0.5))
+        
+        self.perm_matrix = (self.perm_matrix + self.velocity_matrix)%2
         pass
     
     def inverse_permutation(self,perm):
@@ -217,6 +231,7 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
     p_d = population_lst[0].best_matrix    # TODO: lepsza inicializacja najlepszego
     best_cost = np.inf
     for i in range(len(population_lst)):
+        population_lst[i].from_toroidical()
         population_lst[i].fuzzy_matrix_to_permutation()
         cost1 = population_lst[i].PSO_full_QAP_cost()
         cost2 = population_lst[i].PSO_QAP_cost()
@@ -231,9 +246,12 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
     print(f"best PSO input: {best_cost}")
 
     for it in range(M_PSO):
-        print(f"start iteration PSO{it}")
+        if it % 3 == 0:
+            print(f"start iteration PSO: {it}")
         for i in range(len(population_lst)):
+            population_lst[i].to_toroidical()
             population_lst[i].PSO_step(p_d)
+            population_lst[i].from_toroidical()
 
         
         for i in range(len(population_lst)):
@@ -248,7 +266,7 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
             if(best_cost>cost_main):
                 best_cost = cost_main
                 p_d = deepcopy(population_lst[i].perm_matrix)
-                print(f"inst: {i}, PSO {cost1}, PSO_half {cost2}, real {cost3}, cost {cost}")
+                # print(f"inst: {i}, PSO {cost1}, PSO_half {cost2}, real {cost3}, cost {cost}")
             if(population_lst[i].best_cost>cost):
                 population_lst[i].best_cost = cost
                 population_lst[i].best_matrix = deepcopy(population_lst[i].perm_matrix)
@@ -264,18 +282,19 @@ def Taboo(population_lst : List[Instance], M_Taboo = 5):
         if instance_cost < best_global_cost:
             best_global_cost = instance_cost
     for it in range(M_Taboo):
-        print(f"start iteration Taboo: {it}")
+        if it % 3 == 0:
+            print(f"start iteration Taboo: {it}")
         for i in range(len(population_lst)):
             best_local_cost = population_lst[i].taboo_step()
             if best_local_cost < best_global_cost:
                 best_global_cost = best_local_cost
-                print(f"inst: {i}, Taboo {best_global_cost}")
+                # print(f"inst: {i}, Taboo {best_global_cost}")
     min_cost = np.inf
     for inst in population_lst:
         temp = inst.taboo_QAP_cost()
         if(temp < min_cost):
             min_cost = temp
-    print(f"minimalny koszt po taboo: {min_cost}")
+    print(f"min cost found after taboo: {min_cost}")
     pass
 
 def PMX(inst1 : Instance, inst2 : Instance):
@@ -354,7 +373,7 @@ class Island:
 def initialization(M_start = 100) -> List[Instance]:
     instance_lst = [Instance() for i in range(M_start)]
     for i in range(len(instance_lst)):
-        instance_lst[i].perm_matrix = np.random.rand(N,N)
+        instance_lst[i].perm_matrix = 2*np.random.rand(N,N)
         instance_lst[i].velocity_matrix = np.random.rand(N,N)
     return instance_lst
 
@@ -419,7 +438,7 @@ def run(M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_start=START, 
         del_list.sort(reverse=True)
         for i in del_list:
             population_lst.pop(i)
-        
+    
     print("finished :)")
 
 class Worker(QObject):
@@ -465,9 +484,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         sys.stdout.text_written.connect(self.append_text)
         sys.stderr.text_written.connect(self.append_text)
         self.pushButton.clicked.connect(self.start_thread)
-        x = [1, 2, 3, 4, 5]
-        y = [10, 20, 15, 30, 25]
-        self.plotWidget.plot(x, y)
     
     def append_text(self, text):
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
@@ -502,6 +518,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         prev_n = N
         N = int(self.N_numer.text())
         if prev_n != N:
+            print("siur")
             global W, D
             W = np.random.random((N,N))
             D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
