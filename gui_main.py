@@ -5,8 +5,9 @@ from typing import List, Tuple
 from copy import deepcopy
 import random
 import sys
+import time
 from PySide6.QtWidgets import QApplication, QMainWindow
-from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, Signal, Slot, QThread
+from PySide6.QtCore import QCoreApplication, QMetaObject, QObject, Signal, Slot, QThread, QTimer
 from PySide6.QtGui import QTextCursor
 from ui import Ui_MainWindow
 from constants import *
@@ -213,7 +214,7 @@ class Instance:
         X_prev = X@transformation.T
         return X-X_prev
 
-def PSO(population_lst : List[Instance], M_PSO = 5):
+def PSO(callback, population_lst : List[Instance], M_PSO = 5):
     p_d = population_lst[0].best_matrix    # TODO: lepsza inicializacja najlepszego
     best_cost = np.inf
     for i in range(len(population_lst)):
@@ -235,7 +236,6 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
         for i in range(len(population_lst)):
             population_lst[i].PSO_step(p_d)
 
-        
         for i in range(len(population_lst)):
             population_lst[i].fuzzy_matrix_to_permutation()
             cost1 = population_lst[i].PSO_full_QAP_cost()
@@ -252,12 +252,13 @@ def PSO(population_lst : List[Instance], M_PSO = 5):
             if(population_lst[i].best_cost>cost):
                 population_lst[i].best_cost = cost
                 population_lst[i].best_matrix = deepcopy(population_lst[i].perm_matrix)
+        callback(best_cost)
     print("PSO -> Taboo")
     for i in range(len(population_lst)):
         population_lst[i].PSO_to_taboo()
     pass
 
-def Taboo(population_lst : List[Instance], M_Taboo = 5):
+def Taboo(callback, population_lst : List[Instance], M_Taboo = 5):
     best_global_cost = np.inf
     for i in range(len(population_lst)):
         instance_cost = population_lst[i].taboo_QAP_cost()
@@ -270,6 +271,7 @@ def Taboo(population_lst : List[Instance], M_Taboo = 5):
             if best_local_cost < best_global_cost:
                 best_global_cost = best_local_cost
                 print(f"inst: {i}, Taboo {best_global_cost}")
+        callback(best_global_cost)
     min_cost = np.inf
     for inst in population_lst:
         temp = inst.taboo_QAP_cost()
@@ -402,13 +404,13 @@ def split_population(population_lst : List[Instance], M_species = 3) -> List[Lis
     print([len(idx_lst[i]) for i in range(len(idx_lst))])
     return idx_lst#[list(range(len(population_lst)))[0:len(population_lst)//3], list(range(len(population_lst)))[len(population_lst)//3:(2*len(population_lst))//3], list(range(len(population_lst)))[(2*len(population_lst))//3:]]
 
-def run(M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_start=START, max_it = MAX_ITER):
+def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_start=START, max_it = MAX_ITER):
     population_lst : List[Instance] = initialization(M_start=M_start)
     print(N)
     # print(max_it)
     for i in range(max_it):
-        PSO(population_lst, M_PSO)
-        Taboo(population_lst, M_TABOO)
+        PSO(callback, population_lst, M_PSO)
+        Taboo(callback, population_lst, M_TABOO)
 
         split_idx : List[List[int]] = split_population(population_lst, M_species )
         del_list = []
@@ -425,14 +427,19 @@ def run(M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_start=START, 
 class Worker(QObject):
     finished = Signal() 
     start_runn = Signal(int, int, int, int, int)
+    value_updated = Signal(int)
     def __init__(self):
         super().__init__()
         self.start_runn.connect(self.runn)
 
     @Slot(int, int, int, int, int)
     def runn(self, m_pso, m_taboo, m_species, m_start, max_it):
-        run(M_PSO=m_pso, M_TABOO =m_taboo, M_species = m_species, M_start=m_start, max_it=max_it)
+        def emit_value(val):
+            self.value_updated.emit(val)
+
+        run(emit_value, M_PSO=m_pso, M_TABOO =m_taboo, M_species = m_species, M_start=m_start, max_it=max_it)
         self.finished.emit()
+    
 
 class EmittingStream(QObject):
     text_written = Signal(str)
@@ -465,14 +472,41 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         sys.stdout.text_written.connect(self.append_text)
         sys.stderr.text_written.connect(self.append_text)
         self.pushButton.clicked.connect(self.start_thread)
-        x = [1, 2, 3, 4, 5]
-        y = [10, 20, 15, 30, 25]
-        self.plotWidget.plot(x, y)
+
+        # x = [1, 2, 3, 4, 5]
+        # y = [10, 20, 15, 30, 25]
+        # self.plotWidget.plot(x, y)
+
+        self.x = []
+        self.y = []
+
+        self.curve = self.plotWidget.plot([], [], pen='g')
+        self.counter = 0
+
+    def update_display(self, value):
+        print(value)
+        self.x.append(self.counter)
+        self.y.append(value)
+        self.counter += 1
+        # self.y = self.y[1:] + [value]
+        self.curve.setData(self.x, self.y)
+    
+    def handle_new_value(self, value):
+        self.y = self.y[1:] + [value]
+        self.curve.setData(self.x, self.y)
+
+    # def update_plot_data(self):
+    #     self.y = self.y[1:] + [random.randint(0, 100)]  # dodaj nową wartość
+    #     self.curve.setData(self.x, self.y)
     
     def append_text(self, text):
         self.textBrowser.moveCursor(QTextCursor.MoveOperation.End)
         self.textBrowser.insertPlainText(text)
         self.textBrowser.ensureCursorVisible()
+
+    # def start_thread(self):
+    #     if not self.thread.isRunning():
+    #         self.thread.start()
             
     def start_thread(self):
         self.thread = QThread()
@@ -487,6 +521,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         
         
         self.thread.started.connect(lambda: self.worker.start_runn.emit(*self.get_values_for_run()))
+        self.worker.value_updated.connect(self.update_display)
         self.thread.start()
         
     def get_values_for_run(self):
