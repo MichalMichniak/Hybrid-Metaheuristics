@@ -138,7 +138,7 @@ class Ui_MainWindow(object):
         self.c2_ga_pso_num.setObjectName(u"c2_ga_pso_num")
         self.c2_ga_pso_num.setGeometry(QRect(130, 530, 113, 22))
         
-        self.plotWidget = pg.PlotWidget(self.centralwidget)
+        self.plotWidget = pg.PlotWidget(self.centralwidget, background="white")
         self.plotWidget.setObjectName("plotWidget")
         self.plotWidget.setGeometry(QRect(300, 240, 421, 311))
         
