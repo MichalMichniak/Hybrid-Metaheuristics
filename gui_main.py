@@ -232,10 +232,10 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
     print(f"best PSO input: {best_cost}")
 
     for it in range(M_PSO):
-        print(f"start iteration PSO{it}")
+        iteration_best = np.inf
+        print(f"start iteration PSO{it}")   
         for i in range(len(population_lst)):
             population_lst[i].PSO_step(p_d)
-
         for i in range(len(population_lst)):
             population_lst[i].fuzzy_matrix_to_permutation()
             cost1 = population_lst[i].PSO_full_QAP_cost()
@@ -252,7 +252,9 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
             if(population_lst[i].best_cost>cost):
                 population_lst[i].best_cost = cost
                 population_lst[i].best_matrix = deepcopy(population_lst[i].perm_matrix)
-        callback(best_cost)
+            if cost3 < iteration_best:
+                iteration_best = cost3
+        callback([iteration_best])
     print("PSO -> Taboo")
     for i in range(len(population_lst)):
         population_lst[i].PSO_to_taboo()
@@ -265,13 +267,16 @@ def Taboo(callback, population_lst : List[Instance], M_Taboo = 5):
         if instance_cost < best_global_cost:
             best_global_cost = instance_cost
     for it in range(M_Taboo):
+        iteration_best = np.inf
         print(f"start iteration Taboo: {it}")
         for i in range(len(population_lst)):
             best_local_cost = population_lst[i].taboo_step()
             if best_local_cost < best_global_cost:
                 best_global_cost = best_local_cost
                 print(f"inst: {i}, Taboo {best_global_cost}")
-        callback(best_global_cost)
+            if best_local_cost < iteration_best:
+                iteration_best = best_local_cost
+        callback([iteration_best])
     min_cost = np.inf
     for inst in population_lst:
         temp = inst.taboo_QAP_cost()
@@ -323,7 +328,7 @@ def GA(population_lst : List[Instance], idx : List[int]):
         if random.random() < MUTATION_PROB:
             population_lst[i].mutation()
 
-    return offsprings,surv
+    return offsprings, surv
     pass
 
 class Island:
@@ -338,10 +343,19 @@ class Island:
         self.V_mean = self.V_mean/len(self.idx)
         pass
 
-    def run(self):
+    def run(self, callback):
         # wykonanie GA i zamiana na formę PSO
         self.offsprings, self.survivors = GA(self.population_lst, self.idx)# both : List[Instance]
         # (tu mogą być problemy z multiprocessing)
+        island_best = np.inf
+        for i in self.survivors:
+            survivor_cost = self.population_lst[i].taboo_QAP_cost()
+            if survivor_cost < island_best:
+                island_best = survivor_cost
+        for offspring in self.offsprings:
+            offspring_cost = offspring.taboo_QAP_cost()
+            if offspring_cost < island_best:
+                island_best = offspring_cost
         print("GA->PSO")
         for i in self.survivors:
             self.population_lst[i].GA_to_PSO(self.V_mean)
@@ -350,7 +364,8 @@ class Island:
             self.offsprings[i].GA_to_PSO(self.V_mean)
         self.population_lst.extend(self.offsprings)
         self.del_idx = [idx for idx in self.idx if idx not in self.survivors]
-        return self.del_idx
+        self.island_best = island_best
+        return self.del_idx, self.island_best
 
 
 def initialization(M_start = 100) -> List[Instance]:
@@ -414,10 +429,16 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
 
         split_idx : List[List[int]] = split_population(population_lst, M_species )
         del_list = []
+        best_iteration = []
         for i in range(M_species):
             island = Island(population_lst, split_idx[i])
             island.count_mean_transformation()
-            del_list.extend(island.run())
+            new_del_list, new_island_best = island.run(callback)
+            del_list.extend(new_del_list)
+            print("NEW ISLAND BEST: ", new_island_best)
+            best_iteration.append(new_island_best)
+            print(best_iteration)
+        callback(best_iteration)
         del_list.sort(reverse=True)
         for i in del_list:
             population_lst.pop(i)
@@ -427,7 +448,7 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
 class Worker(QObject):
     finished = Signal() 
     start_runn = Signal(int, int, int, int, int)
-    value_updated = Signal(int)
+    value_updated = Signal(list)
     def __init__(self):
         super().__init__()
         self.start_runn.connect(self.runn)
@@ -459,8 +480,6 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        # self.text_browser = QTextBrowser(self)
-        # self.setCentralWidget(self.textBrowser)
 
         # Przekierowanie stdout i stderr
         self.original_stdout = sys.stdout
@@ -473,23 +492,52 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         sys.stderr.text_written.connect(self.append_text)
         self.pushButton.clicked.connect(self.start_thread)
 
-        # x = [1, 2, 3, 4, 5]
-        # y = [10, 20, 15, 30, 25]
-        # self.plotWidget.plot(x, y)
-
         self.x = []
-        self.y = []
+        self.y1 = []
+        self.y2 = []
+        self.y3 = []
 
-        self.curve = self.plotWidget.plot([], [], pen='g')
+        self.curve1 = self.plotWidget.plot([], [], pen='r')
+        self.curve2 = self.plotWidget.plot([], [], pen='g')
+        self.curve3 = self.plotWidget.plot([], [], pen='b')
+
+        self.showing_multiple = False
+        self.curve2.hide()
+        self.curve3.hide()
+
         self.counter = 0
 
+    # def update_display(self, value):
+    #     print(value)
+    #     self.x.append(self.counter)
+    #     self.y.append(value)
+    #     self.counter += 1
+    #     # self.y = self.y[1:] + [value]
+    #     self.curve.setData(self.x, self.y)
+
     def update_display(self, value):
-        print(value)
+        print("VALUE: ", value)
         self.x.append(self.counter)
-        self.y.append(value)
+        if len(value) == 3:
+            self.showing_multiple = True
+            self.y1.append(value[0])
+            self.y2.append(value[1])
+            self.y3.append(value[2])
+        else:
+            self.y1.append(value[0])
+            self.y2.append(value[0])
+            self.y3.append(value[0])
+
         self.counter += 1
-        # self.y = self.y[1:] + [value]
-        self.curve.setData(self.x, self.y)
+
+        self.curve1.setData(self.x, self.y1)
+
+        if self.showing_multiple:
+            self.curve2.show()
+            self.curve3.show()
+            self.curve2.setData(self.x, self.y2)
+            self.curve3.setData(self.x, self.y3)
+            self.showing_multiple = False
     
     def handle_new_value(self, value):
         self.y = self.y[1:] + [value]
