@@ -30,6 +30,11 @@ class Instance:
         self.best_cost = np.inf
         self.velocity_matrix = np.zeros((N,N), dtype = float)
         self.permutation = np.zeros((N,), dtype= int)
+
+        self.permutation_prev_PSO = np.zeros((N,), dtype= int)
+        self.counter = 0
+        self.max_counter = 5
+
         self.PSO_min = np.zeros((N,N), dtype = float) # argument dla minimalnej wartości jaką osiągnęła dana instancja
         self.taboo_lst = []
         self.taboo_size = 10
@@ -219,6 +224,10 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
     best_cost = np.inf
     for i in range(len(population_lst)):
         population_lst[i].fuzzy_matrix_to_permutation()
+
+        population_lst[i].permutation_prev_PSO = population_lst[i].permutation
+        population_lst[i].counter = 0
+
         cost1 = population_lst[i].PSO_full_QAP_cost()
         cost2 = population_lst[i].PSO_QAP_cost()
         cost3 = population_lst[i].real_QAP_cost()
@@ -238,6 +247,26 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
             population_lst[i].PSO_step(p_d)
         for i in range(len(population_lst)):
             population_lst[i].fuzzy_matrix_to_permutation()
+            if ((population_lst[i].permutation_prev_PSO == population_lst[i].permutation).all()):
+                population_lst[i].counter += 1
+                if population_lst[i].counter > population_lst[i].max_counter:
+                    population_lst[i].counter = 0
+                    # usun najwieksze
+                    curr_max = -np.inf
+                    curr_min = np.inf 
+                    curr_x = 0
+                    curr_y = 0
+                    for j in range(N):
+                        for k in range(N):
+                            if(curr_max<population_lst[i].perm_matrix[k][j]):
+                                curr_max = population_lst[i].perm_matrix[k][j]
+                                curr_x = j
+                                curr_y = k
+                            if(curr_min>population_lst[i].perm_matrix[k][j]):
+                                curr_min = population_lst[i].perm_matrix[k][j]
+                    population_lst[i].perm_matrix[curr_y][curr_x] = curr_min - 0.00001
+            else:
+                population_lst[i].permutation_prev_PSO = population_lst[i].permutation
             cost1 = population_lst[i].PSO_full_QAP_cost()
             cost2 = population_lst[i].PSO_QAP_cost()
             cost3 = population_lst[i].real_QAP_cost()
