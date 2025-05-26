@@ -14,7 +14,9 @@ from constants import *
 
 # N = 50
 # TABOO_NEIGHBORS = 30
+global MIN_COST
 MIN_COST = np.inf
+BEST_PERM = []
 # LONG_TERM_CONST = 2
 W = np.random.random((N,N))
 D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
@@ -234,6 +236,8 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
         
         penality = population_lst[i].penality()
         cost = cost3# + penality #cost1+penality #TODO: chose cost func
+        if cost < MIN_COST:
+            MIN_COST = cost
         if(best_cost>cost):
             best_cost = cost
             p_d = deepcopy(population_lst[i].perm_matrix)
@@ -281,6 +285,8 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
             if(population_lst[i].best_cost>cost):
                 population_lst[i].best_cost = cost
                 population_lst[i].best_matrix = deepcopy(population_lst[i].perm_matrix)
+            if cost < MIN_COST:
+                MIN_COST = cost
             if cost3 < iteration_best:
                 iteration_best = cost3
         callback([iteration_best])
@@ -303,6 +309,8 @@ def Taboo(callback, population_lst : List[Instance], M_Taboo = 5):
             if best_local_cost < best_global_cost:
                 best_global_cost = best_local_cost
                 print(f"inst: {i}, Taboo {best_global_cost}")
+            if best_local_cost < MIN_COST:
+                MIN_COST = best_local_cost
             if best_local_cost < iteration_best:
                 iteration_best = best_local_cost
         callback([iteration_best])
@@ -464,6 +472,8 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
             island.count_mean_transformation()
             new_del_list, new_island_best = island.run(callback)
             del_list.extend(new_del_list)
+            if new_island_best < MIN_COST:
+                MIN_COST = new_island_best
             print("NEW ISLAND BEST: ", new_island_best)
             best_iteration.append(new_island_best)
             print(best_iteration)
@@ -471,9 +481,34 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
         del_list.sort(reverse=True)
         for i in del_list:
             population_lst.pop(i)
+    print('taki jest najlepszy', MIN_COST)
         
     print("finished :)")
 
+def load_problem(path):
+    f = open(path, 'r')
+    data = f.read()
+    data = data.split('\n')
+    size = int(data[0])
+    
+    F = []
+    D = []
+    for row in data[2:size+2]:
+        F.append([])
+        row = row.split(' ')
+        for nums in row:
+            if nums:
+                F[-1].append(float(nums))
+
+    for row in data[size+3:2*size+3]:
+        D.append([])
+        row = row.split(' ')
+        for nums in row:
+            if nums:
+                D[-1].append(float(nums))
+    return size, np.array(F), np.array(D)
+    
+    
 class Worker(QObject):
     finished = Signal() 
     start_runn = Signal(int, int, int, int, int)
@@ -600,6 +635,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.thread.started.connect(lambda: self.worker.start_runn.emit(*self.get_values_for_run()))
         self.worker.value_updated.connect(self.update_display)
         self.thread.start()
+
         
     def get_values_for_run(self):
         m_pso = int(self.m_pso_num.text())
@@ -610,14 +646,15 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         return m_pso, m_taboo, m_species, m_start, max_it
     
     def get_global_vars(self):
-        global N, TABOO_NEIGHBORS, MUTATION_PROB, SURV_PART
-        prev_n = N
-        N = int(self.N_numer.text())
-        if prev_n != N:
-            global W, D
-            W = np.random.random((N,N))
-            D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
-            D = (D+D.T)/2
+        global N, TABOO_NEIGHBORS, MUTATION_PROB, SURV_PART, W, D
+        # prev_n = N
+        N, W, D = load_problem('qap/Chr20a.txt')
+        # N = int(self.N_numer.text())
+        # if prev_n != N:
+        #     global W, D
+        #     W = np.random.random((N,N))
+        #     D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
+        #     D = (D+D.T)/2
         TABOO_NEIGHBORS = int(self.taboo_neighbours_num.text())
         MUTATION_PROB = float(self.mut_prob_num.text())
         SURV_PART = float(self.surr_part_num.text())
