@@ -14,7 +14,7 @@ from constants import *
 
 # N = 50
 # TABOO_NEIGHBORS = 30
-global MIN_COST
+# global MIN_COST
 MIN_COST = np.inf
 BEST_PERM = []
 # LONG_TERM_CONST = 2
@@ -236,8 +236,11 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
         
         penality = population_lst[i].penality()
         cost = cost3# + penality #cost1+penality #TODO: chose cost func
+        global MIN_COST, BEST_PERM
         if cost < MIN_COST:
             MIN_COST = cost
+            BEST_PERM = population_lst[i].permutation
+
         if(best_cost>cost):
             best_cost = cost
             p_d = deepcopy(population_lst[i].perm_matrix)
@@ -285,8 +288,10 @@ def PSO(callback, population_lst : List[Instance], M_PSO = 5):
             if(population_lst[i].best_cost>cost):
                 population_lst[i].best_cost = cost
                 population_lst[i].best_matrix = deepcopy(population_lst[i].perm_matrix)
+            # global MIN_COST
             if cost < MIN_COST:
                 MIN_COST = cost
+                BEST_PERM = population_lst[i].permutation
             if cost3 < iteration_best:
                 iteration_best = cost3
         callback([iteration_best])
@@ -309,8 +314,10 @@ def Taboo(callback, population_lst : List[Instance], M_Taboo = 5):
             if best_local_cost < best_global_cost:
                 best_global_cost = best_local_cost
                 print(f"inst: {i}, Taboo {best_global_cost}")
+            global MIN_COST, BEST_PERM
             if best_local_cost < MIN_COST:
                 MIN_COST = best_local_cost
+                BEST_PERM = population_lst[i].permutation
             if best_local_cost < iteration_best:
                 iteration_best = best_local_cost
         callback([iteration_best])
@@ -472,8 +479,12 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
             island.count_mean_transformation()
             new_del_list, new_island_best = island.run(callback)
             del_list.extend(new_del_list)
+            global MIN_COST, BEST_PERM
             if new_island_best < MIN_COST:
                 MIN_COST = new_island_best
+                BEST_PERM = 'nie wiem jak wyciągnąć'
+                
+
             print("NEW ISLAND BEST: ", new_island_best)
             best_iteration.append(new_island_best)
             print(best_iteration)
@@ -481,7 +492,7 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
         del_list.sort(reverse=True)
         for i in del_list:
             population_lst.pop(i)
-    print('taki jest najlepszy', MIN_COST)
+    print('taki jest najlepszy', MIN_COST, ' dla perm ', BEST_PERM)
         
     print("finished :)")
 
