@@ -493,28 +493,62 @@ def run(callback, M_PSO = M_PSO, M_TABOO = M_TABOO, M_species = M_SPECIES, M_sta
         
     print("finished :)")
 
-def load_problem(path):
-    f = open(path, 'r')
-    data = f.read()
-    data = data.split('\n')
-    size = int(data[0])
+# def load_problem(path):
+#     f = open(path, 'r')
+#     data = f.read()
+#     data = data.split('\n')
+#     size = int(data[0])
     
-    F = []
-    D = []
-    for row in data[2:size+2]:
-        F.append([])
-        row = row.split(' ')
-        for nums in row:
-            if nums:
-                F[-1].append(float(nums))
+#     F = []
+#     D = []
+#     for row in data[2:size+2]:
+#         F.append([])
+#         row = row.split(' ')
+#         for nums in row:
+#             if nums:
+#                 F[-1].append(float(nums))
 
-    for row in data[size+3:2*size+3]:
-        D.append([])
-        row = row.split(' ')
-        for nums in row:
-            if nums:
-                D[-1].append(float(nums))
-    return size, np.array(F), np.array(D)
+#     for row in data[size+3:2*size+3]:
+#         D.append([])
+#         row = row.split(' ')
+#         for nums in row:
+#             if nums:
+#                 D[-1].append(float(nums))
+#     return size, np.array(F), np.array(D)
+def load_problem(filename):
+    with open(filename, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    # Szukamy pierwszej liczby całkowitej jako `n`
+    for i, line in enumerate(lines):
+        try:
+            n = int(line)
+            start_idx = i + 1
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError("Nie znaleziono liczby n.")
+
+    total_values = n * n
+
+    # Zbieramy wszystkie liczby w jeden wektor
+    data = []
+    for line in lines[start_idx:]:
+        data.extend(map(int, line.split()))
+
+    if len(data) != 2 * total_values:
+        raise ValueError("Zła liczba wartości – oczekiwano {} wartości, a znaleziono {}.".format(2 * total_values, len(data)))
+
+    # Tworzymy dwuwymiarowe macierze (listy list)
+    flow_flat = data[:total_values]
+    dist_flat = data[total_values:]
+
+    flow_matrix = [flow_flat[i * n:(i + 1) * n] for i in range(n)]
+    distance_matrix = [dist_flat[i * n:(i + 1) * n] for i in range(n)]
+
+    return n, np.array(flow_matrix), np.array(distance_matrix)
+
     
     
 class Worker(QObject):
@@ -656,7 +690,8 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def get_global_vars(self):
         global N, TABOO_NEIGHBORS, MUTATION_PROB, SURV_PART, W, D
         # prev_n = N
-        N, W, D = load_problem('qap/Tai30a.txt')
+        N, W, D = load_problem('qap/QAPLIB_data/Lipa30a.txt')
+        print(W, D)
         # N = int(self.N_numer.text())
         # if prev_n != N:
         #     global W, D
