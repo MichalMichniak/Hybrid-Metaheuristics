@@ -23,7 +23,7 @@ D = np.random.random((N,N))*(np.ones((N,N)) - np.eye(N))
 D = (D+D.T)/2
 # SURV_PART = 0.6
 # MUTATION_PROB = 0.3
-        
+     
         
 class Instance:
     def __init__(self):
@@ -75,7 +75,7 @@ class Instance:
 
     def PSO_step(self, p_d):
         #update pojedynczej cząstki
-        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2)*self.c_1*(self.best_matrix - self.perm_matrix) + np.random.rand()*self.c_2*(p_d - self.perm_matrix)
+        self.velocity_matrix = self.omega*self.velocity_matrix + np.random.normal(0.2,scale=2,size= self.best_matrix.shape)*self.c_1*(self.best_matrix - self.perm_matrix) + np.random.rand(*self.best_matrix.shape)*self.c_2*(p_d - self.perm_matrix)
         self.perm_matrix = np.minimum(1,np.maximum(0, self.perm_matrix + self.velocity_matrix))
         pass
     
@@ -99,15 +99,12 @@ class Instance:
         return np.trace(A)
 
     def real_QAP_cost(self):
-        W_prim = np.zeros((N,N))
-        for j in range(N):
-            W_prim[:,self.permutation[j]] = W[:,j]
-            pass
-        A = W_prim@D
-        sum = 0
-        for i in range(len(self.permutation)):
-            sum+=A[i][self.permutation[i]]
-        return sum
+        solution = self.permutation
+        total_cost = 0
+        for i in range(N):
+            for j in range(N):
+                total_cost += W[i][j] * D[solution[i]][solution[j]]
+        return total_cost
 
     def fuzzy_matrix_to_permutation(self):
         idx_col = list(range(N))
@@ -659,7 +656,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def get_global_vars(self):
         global N, TABOO_NEIGHBORS, MUTATION_PROB, SURV_PART, W, D
         # prev_n = N
-        N, W, D = load_problem('qap/Chr20a.txt')
+        N, W, D = load_problem('qap/Tai30a.txt')
         # N = int(self.N_numer.text())
         # if prev_n != N:
         #     global W, D
@@ -678,6 +675,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         B2 = float(self.b2_num.text())
         C_1_GA_PSO = float(self.c1_ga_pso_num.text())
         C_2_GA_PSO = float(self.c2_ga_pso_num.text())
+
         
         
     # def handle_run(self): 
